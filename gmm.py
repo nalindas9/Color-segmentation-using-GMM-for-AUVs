@@ -2,7 +2,7 @@
 Expectation Maximization Algorithm
 
 Authors:
-Nalin Das (nalindas9@gmail.com)
+-Nalin Das (nalindas9@gmail.com), 
 Graduate Student pursuing Masters in Robotics,
 University of Maryland, College Park
 """
