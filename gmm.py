@@ -27,15 +27,13 @@ def hist(image):
 # K is the number of Gaussians that can be fit into the histogram
 # For the image Green_boi_42.png, K is 3
 
-# Gaussian class
-class Gaussian:
-  def __init__(self, mu, sigma):
-    self.mu = mu
-    self.sigma = sigma
+# Function to calculate pdf of a given gaussian
+def pdf(x, mu, sigma):
+  return ((1/(sigma*np.sqrt(2*np.pi))*np.exp((-(x-mu)**2)/(2*sigma**2))))
     
-  def pdf(self, x):
-    return ((1/(self.sigma*np.sqrt(2*np.pi))*np.exp((-(x-self.mu)**2)/(2*self.sigma**2))))
-
+# GMM and EM estimation class
+class GmmEm:
+  def __init__(self, )
 
 # Function that generates initial random gaussians for the image
 def generate_gauss():
@@ -56,8 +54,8 @@ def generate_gauss():
   print('Input Gaussian {:}: μ = {:}, σ = {:}'.format("3", mu3, sigma3))
   return data
   
-# Expectation Maximization Algorithm Function
-#def ex_max():
+
+
      
 def main():
   img = cv2.imread('/home/nalindas9/Documents/Courses/Spring_2020_Semester_2/ENPM673_Perception_for_Autonomous_Robots/Github/project3/Color-segmentation-using-GMM/Green_boi_42.png')
