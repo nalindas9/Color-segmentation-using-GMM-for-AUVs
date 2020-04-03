@@ -2,6 +2,7 @@ import cv2
 import math
 import numpy as np
 import matplotlib.pyplot as plt
+import glob
 
 '''
 Author: Aditya Khopkar, Graduate Robotics Student @ UMD
@@ -121,34 +122,82 @@ def initialize_parameters(data,K):
 '''
 Generate data : stacking all the training data set
 '''
-def generate_data():
-    data = []
-    for fname in glob.glob('/home/akhopkar/Desktop/PROJECT_3/yellow_train/*'):
-        img = cv2.imread(fname)
-    #     cv2.imshow('file',img)
-    # #     if cv2.waitKey(5) & 0xFF == 27:
-    # #         break
-    #     cv2.waitKey(0)
-        img_red_channel = img[:,:,2]
-        img_green_channel = img[:,:,1]
-        nx,ny,_ = img.shape
-        redChannel = np.reshape(img_red_channel,((nx*ny),1))
-        greenChannel = np.reshape(img_green_channel,((nx*ny),1))
-        #yellow2D = np.vstack((redChannel,greenChannel)).T
-        yello1D = np.concatenate((redChannel,greenChannel),axis=0)
-        for i in range(yello1D.shape[0]):
-            data.append(yello1D[i,:])
-    data = np.array(data)
-    return data
+def generate_data_yellow():
+	data = []
+	for fname in glob.glob('/home/akhopkar/Desktop/PROJECT_3/yellow_train/*'):
+	    img = cv2.imread(fname)
+	    resized = cv2.resize(img,(40,40),interpolation=cv2.INTER_LINEAR)
+	    img = resized[15:25,15:25]
+	#         cv2.imshow('file',img)
+	#     # #     if cv2.waitKey(5) & 0xFF == 27:
+	#     # #         break
+	#         cv2.waitKey(0)
+	    img_red_channel = img[:,:,2]
+	    img_green_channel = img[:,:,1]
+	    nx,ny,_ = img.shape
+	    redChannel = np.reshape(img_red_channel,((nx*ny),1))
+	    greenChannel = np.reshape(img_green_channel,((nx*ny),1))
+	    #yellow2D = np.vstack((redChannel,greenChannel)).T
+	    yello1D = np.concatenate((redChannel,greenChannel),axis=0)
+	    for i in range(yello1D.shape[0]):
+	        data.append(yello1D[i,:])
+	data = np.array(data)
+	return data
 
-n_clusters = 2
-data = generate_data()
-initial_parameters = initialize_parameters(data,n_clusters) 
-print('Initial Parameters',initial_parameters)
-gmm = gmm_algo(yello1D,n_clusters,initial_parameters,0.0001)
-new_parameters = gmm.solve(1000)
-print('New Parameters',new_parameters)
+def generate_data_orange():
+	data = []
+	for fname in glob.glob('/home/akhopkar/Desktop/PROJECT_3/orange_train/*'):
+	    img = cv2.imread(fname)
+	    resized = cv2.resize(img,(40,40),interpolation=cv2.INTER_LINEAR)
+	    img = resized[15:25,15:25]
+	#         cv2.imshow('file',img)
+	#     # #     if cv2.waitKey(5) & 0xFF == 27:
+	#     # #         break
+	#         cv2.waitKey(0)
+	    img_red_channel = img[:,:,2]
+	    nx,ny,_ = img.shape
+	    red1D = np.reshape(img_red_channel,((nx*ny),1))
+	    for i in range(red1D.shape[0]):
+	        data.append(red1D[i,:])
+	data = np.array(data)
+	return data
 
+def generate_data_green():
+	data = []
+	for fname in glob.glob('/home/akhopkar/Desktop/PROJECT_3/green_train/*'):
+	    img = cv2.imread(fname)
+	    resized = cv2.resize(img,(40,40),interpolation=cv2.INTER_LINEAR)
+	    img = resized[15:25,15:25]
+	#         cv2.imshow('file',img)
+	#     # #     if cv2.waitKey(5) & 0xFF == 27:
+	#     # #         break
+	#         cv2.waitKey(0)
+	    img_green_channel = img[:,:,1]
+	    nx,ny,_ = img.shape
+	    green1D = np.reshape(img_green_channel,((nx*ny),1))
+	    #yellow2D = np.vstack((redChannel,greenChannel)).T
+	    for i in range(green1D.shape[0]):
+	        data.append(green1D[i,:])
+	data = np.array(data)
+	return data
+
+TRAIN_MODE = 'Yellow'
+
+
+
+if TRAIN_MODE == 'Yellow':
+	data = generate_data_yellow()
+if TRAIN_MODE == 'Orange':
+	data = generate_data_orange()
+if TRAIN_MODE == 'Green':
+	data = generate_data_green()
+print('Data size: ',data.shape)
+K = 2
+p = initialize_parameters(data,K) 
+print('Initial Parameters:', p)
+gmm = gmm_algo(data,K,p,0.0001)
+parameters = gmm.solve(50)
+print('Parameters:'+str(parameters))
 # hist_red = cv2.calcHist([img_red_channel],[0],None,[256],[0,256]) 
 # hist_green = cv2.calcHist([img_green_channel],[0],None,[256],[0,256])
 # hist_yellow = np.concatenate((hist_red,hist_green),axis = 0)
