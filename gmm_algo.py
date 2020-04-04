@@ -14,20 +14,19 @@ class gmm_algo:
     def __init__(self,data,n_clusters,parameters,thresh):
         self.data = data
         self.n = data.shape[0]
-        #self.obs = data.shape[1]
         self.K = n_clusters
         self.thresh = thresh
-        self.num = np.zeros(self.K)
-        self.den = np.zeros(self.K)
-        self.log_likelihoods = []
+        self.num = np.zeros(K)
+        self.den = np.zeros(K)
+        self.log_likelihoods = [0]
         self.init_parameters = parameters
-        self.new_mean = np.zeros_like(self.init_parameters['mean'])
-        self.new_cov  = np.zeros_like(self.init_parameters['cov'])
-        self.new_w = np.zeros_like(self.init_parameters['w'])
+        self.new_mean = np.zeros_like(parameters['mean'])
+        self.new_cov = np.zeros_like(parameters['cov'])
+        self.new_w = np.zeros_like(parameters['w'])
 
     def calcGaussianProbability(self,mean,covariance):
         data = self.data
-        gauss_prob = 1/(math.sqrt(2*np.pi)*covariance) * np.exp(-0.5*((data-mean)/(covariance))**2)
+        gauss_prob = 1/(np.sqrt(2*np.pi)*covariance) * np.exp(-0.5*((data-mean)/(covariance))**2)
         return gauss_prob
     
     def getParams(self,params):
@@ -36,8 +35,33 @@ class gmm_algo:
         w = params['w']
         return mean,cov,w
         
+    def update_covariance(self,alpha,mean):
+        den = np.sum(alpha,axis=0)
+        cov = self.new_cov
+        K = self.K
+        data = self.data
+        for k in range(0,K):
+            x_mean = data-mean[k,:]
+            alpha_diag = np.diag(alpha[:,k])
+            x = np.matrix(x_mean)
+            sigma = x.T * alpha_diag * x
+            cov[k,:,:] = sigma/den[k]
+        return cov
+
+    def update_mean(self,alpha):
+        data = self.data
+        den = np.sum(alpha,axis=0)
+        mean = self.new_mean
+        mean = np.dot(alpha.T,data)/den[:,np.newaxis]
+        return mean
+
+    def update_weight(self,alpha):
+        n,d = data.shape
+        w = self.new_w
+        w = np.mean(alpha,axis = 0)
+        return w
+        
     def E_step(self,params):
- 
         m = params['mean']
         cov = params['cov']
         weights = params['w']
@@ -48,32 +72,14 @@ class gmm_algo:
             gauss_prob = self.calcGaussianProbability(m[k],cov[k])
             temp = weights[k]*gauss_prob
             z[:,k] = temp.reshape((n,))
-        alpha = (z/np.sum(z,axis=0)).T
-        log_likelihood = np.sum(np.log(np.sum(z, axis = 0)))
-        #log_likelihoods.append(log_likelihood)
+        alpha = (z.T/np.sum(z,axis=1)).T
+        log_likelihood = np.sum(np.log(np.sum(z, axis = 1)))
         return alpha, log_likelihood
     
     def M_step(self,alpha):
-        data = self.data
-        #w = self.w
-        n = self.n
-        K = self.K
-        new_mean = self.new_mean
-        new_cov = self.new_cov
-        new_w = self.new_w
-        num = self.num
-        den = self.den
-        for k in range(K):
-#             mean[k] = 1. / N_ks[k] * np.sum(z[:, k] * data.T, axis = 1).T
-#             x_mean = np.matrix(data - mean[k])
-#             cov[k] = np.array(1 / N_ks[k] * np.dot(np.multiply(x_mean.T,  z[:, k]), x_mean))
-#             w[k] = 1. / n * N_ks[k]
-            num[k] = np.dot(alpha[k,:],data)
-            den[k] = np.sum(alpha[k,:])
-            new_mean[k] = num[k]/den[k]
-            x_mean = np.matrix(data-new_mean[k])
-            new_cov[k] = 1./den[k] * np.dot(np.multiply(x_mean.T,alpha[k,:]),x_mean) 
-            new_w[k] = 1/n * den[k]
+        new_mean = self.update_mean(alpha)
+        new_cov = self.update_covariance(alpha,new_mean)
+        new_w = self.update_weight(alpha)
         updated_parameters = {
             'mean':new_mean,
             'cov':new_cov,
@@ -86,16 +92,11 @@ class gmm_algo:
         thresh = self.thresh
         log_likelihoods = self.log_likelihoods
         for i in range(0,iterations):
-            print('Epoch:'+str(i))
-            #self.mean,self.cov,self.w = self.getParams(parameters)
             responsibility,log_likelihood = self.E_step(parameters)
-            print('Likelihood:',log_likelihood)
             log_likelihoods.append(log_likelihood)
             parameters = self.M_step(responsibility)
-            if len(log_likelihoods) < 2: 
-                continue
-            if len(log_likelihoods) > 1000 or np.abs(log_likelihoods[-1] - log_likelihoods[-2]) < thresh:
-                break
+            loss = np.abs(log_likelihoods[-1] - log_likelihoods[-2])
+            print('Loss for epoch '+str(i)+' : '+str(loss)+' likelihood '+str(log_likelihood))
         
         return parameters
 
@@ -106,7 +107,7 @@ return: Initial parameters - Dictionary
 '''
 def initialize_parameters(data,K):
     n,d = data.shape
-    mean = yello1D[np.random.choice(n,K,replace=False)]
+    mean = data[np.random.choice(n,K,replace=False)]
     covariance = [80*np.eye(d)] * K
     weights = [1./K] * K
     for i in range(K):
