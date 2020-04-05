@@ -12,7 +12,8 @@ import cv2
 from matplotlib import pyplot as plt
 from random import seed
 from random import random
-from scipy.stats import norm
+import glob
+
 # seed random number generator
 seed(1)
 
@@ -51,8 +52,9 @@ def gaussian(img, data):
 # GMM and EM estimation class
 class GmmEm:
   # Initializing with the three gaussians which would like to mix
-  def __init__(self, channel, k):
+  def __init__(self, channel, k, iterations):
     self.channel = channel.flatten()
+    self.iterations = iterations
     self.k = k
     self.mix = 1/self.k
     self.pi =[random()]*self.k
@@ -118,7 +120,10 @@ class GmmEm:
     
     # Updating the mean and std's
     self.mu1, self.mu2,self.mu3, self.sigma1, self.sigma2, self.sigma3 = new_mu[0],  new_mu[1],  new_mu[2], new_sigma[0], new_sigma[1], new_sigma[2]
-        
+    
+  def em_algo(self):
+    for pic in sorted(glob.glob(user_input+ "/*")):
+    
     return new_sigma
       
 
