@@ -13,6 +13,8 @@ from matplotlib import pyplot as plt
 from random import seed
 from random import random
 import glob
+import imutils
+from imutils import contours
 
 # seed random number generator
 seed(1)
@@ -23,8 +25,11 @@ fig1, axs = plt.subplots(2,2)
 def hist(image): 
   fig1.suptitle('BGR channel histograms for image')
   blue = cv2.calcHist([image],[0],None,[256],[0,256])
+  blue = blue/blue.sum()
   green = cv2.calcHist([image],[1],None,[256],[0,256])
+  green = green/green.sum()
   red = cv2.calcHist([image],[2],None,[256],[0,256])  
+  red = red/red.sum()
   axs[0, 0].plot(blue,color = 'b')
   axs[0, 1].plot(green,color = 'g')
   axs[1, 0].plot(red,color = 'r')
@@ -82,7 +87,7 @@ class GmmEm:
     probs = []
     # Finding probability of each point 
     for pixel in self.channel:
-      # Probability of point to lie in Gaussian 1
+      #  of point to lie in Gaussian 1
       p1 = (self.pi[0]*pdf(pixel, self.mu1, self.sigma1))/(self.pi[0]*pdf(pixel, self.mu1, self.sigma1) + self.pi[1]*pdf(pixel, self.mu2, self.sigma2) + self.pi[2]*pdf(pixel, self.mu3, self.sigma3))
       # Probability of point to lie in Gaussian 2
       p2 = (self.pi[1]*pdf(pixel, self.mu2, self.sigma2))/(self.pi[0]*pdf(pixel, self.mu1, self.sigma1) + self.pi[1]*pdf(pixel, self.mu2, self.sigma2) + self.pi[2]*pdf(pixel, self.mu3, self.sigma3))
@@ -93,6 +98,22 @@ class GmmEm:
       self.probs = np.array(probs)
     return self.probs 
   
+  # Function to find probability of each point in obtained gaussians
+  def likelihood(self, pixel, cluster):
+    if cluster == 'p1':
+      # Probability of point to lie in Gaussian 1
+      p1 = (self.pi[0]*pdf(pixel, self.mu1, self.sigma1))
+      return p1
+    elif cluster == 'p2':
+      # Probability of point to lie in Gaussian 2
+      p2 = (self.pi[1]*pdf(pixel, self.mu2, self.sigma2))
+      return p2
+    else:
+      # Probability of point to lie in Gaussian 3
+      p3 = (self.pi[2]*pdf(pixel, self.mu3, self.sigma3))
+      return p3
+      
+      
   # Perform Maximization step
   def m_step(self):
     sum_clusters = []
@@ -114,8 +135,7 @@ class GmmEm:
       # Calculate new updated standard deviation      
       new_sigma.append(((np.sum((self.probs[:,clusterr].reshape(len(self.probs[:,clusterr]),1))*(((self.channel).reshape(len(self.channel),1))-mu)**2))/sumc)**(1/2))
       log_likelihood.append(np.sum(np.log(sumc)))
-    
-    print('new sigma:', new_sigma)
+   
     if self.log_likelihood[0]- log_likelihood[0] == 0 or self.log_likelihood[1]-log_likelihood[1] == 0 or self.log_likelihood[2]-log_likelihood[2] == 0:
       return True 
     else:
@@ -126,8 +146,8 @@ class GmmEm:
   def train(self, iterations):
     for i in range(iterations):
       print('Iteration:', i+1)
-      for count, pic in enumerate(sorted(glob.glob("/home/nalindas9/Documents/Courses/Spring_2020_Semester_2/ENPM673_Perception_for_Autonomous_Robots/Github/project3/Color-segmentation-using-GMM/DATANEW/Green_bouy/training_data"+ "/*")), 1):
-        print('Image:', pic.split("training_data/",1)[1])
+      for count, pic in enumerate(sorted(glob.glob("/home/nalindas9/Documents/Courses/Spring_2020_Semester_2/ENPM673_Perception_for_Autonomous_Robots/Github/project3/Color-segmentation-using-GMM/DATANEW/Green_bouy"+ "/*")), 1):
+        print('Image:', pic.split("Green_bouy/",1)[1])
         img = cv2.imread(pic) 
         k = 3
         blue, green, red = hist(img)
@@ -151,39 +171,90 @@ class GmmEm:
       y2.append(1/(self.sigma2 * np.sqrt(2 * np.pi))*np.exp( - (point - self.mu2)**2 / (2 * self.sigma2**2) ))
       y3.append(1/(self.sigma3 * np.sqrt(2 * np.pi))*np.exp( - (point - self.mu3)**2 / (2 * self.sigma3**2) ))
     
-    axs[0, 1].plot(xaxis, np.array(y1)*(10/max(y2)), linewidth=2, color='r')
-    axs[0, 1].plot(xaxis, np.array(y2)*(10/max(y2)), linewidth=2, color='r')
-    axs[0, 1].plot(xaxis, np.array(y3)*(10/max(y2)), linewidth=2, color='r')  
+    axs[0, 1].plot(xaxis, np.array(y1), linewidth=2, color='r')
+    axs[0, 1].plot(xaxis, np.array(y2), linewidth=2, color='r')
+    axs[0, 1].plot(xaxis, np.array(y3), linewidth=2, color='r')  
     axs[1, 1].plot(xaxis, y1, linewidth=2, color='r')
     axs[1, 1].plot(xaxis, y2, linewidth=2, color='r')
     axs[1, 1].plot(xaxis, y3, linewidth=2, color='r')
     
     plt.show()
+  
+  def test(self):
+    cap = cv2.VideoCapture("/home/nalindas9/Documents/Courses/Spring_2020_Semester_2/ENPM673_Perception_for_Autonomous_Robots/Github/project3/Color-segmentation-using-GMM/DATANEW/detectbuoy.avi")
+    if cap.isOpened() == False:
+      print("Error loading video!")
     
-    return self.mu1, self.mu2,self.mu3, self.sigma1, self.sigma2, self.sigma3, self.pi
+    
+    # Specify the path of the output video to be rendered
+    out = cv2.VideoWriter('Green_buoy.avi',cv2.VideoWriter_fourcc(*'XVID'), 5, (640,480))
+
+    #Iterating through all the frames in the Video
+    print('Video Rendering started ...')
+    no = 0
+    while cap.isOpened():
+      ret,frame = cap.read()
+      if ret == False:
+           break
+      no = no+1  
+      print('Frame no:', no)   
+      green = np.array(frame[:,:,1])
+      chance = np.vectorize(self.likelihood)
+      pixel_probs1 = chance(green,'p1')
+      pixel_probs2 = chance(green,'p2')
+      pixel_probs3 = chance(green,'p3')
+      pixel_probs1 = pixel_probs1.reshape(pixel_probs1.shape[0]*pixel_probs1.shape[1], 1)
+      pixel_probs2 = pixel_probs2.reshape(pixel_probs1.shape[0]*pixel_probs1.shape[1], 1)
+      pixel_probs3 = pixel_probs3.reshape(pixel_probs1.shape[0]*pixel_probs1.shape[1], 1)
+      
+      pixel_probs = np.concatenate((pixel_probs1, pixel_probs2, pixel_probs3), axis = 1)
+      sum_pixel_probs = np.sum(pixel_probs, axis = 1)
+      new_prob_image = sum_pixel_probs.reshape(green.shape[0], green.shape[1])
+      new_prob_image[new_prob_image>(np.max(new_prob_image)/1.0001)] = 255 
+      new_prob_image[new_prob_image<=(np.max(new_prob_image)/1.0001)] = 0
+      #print('Pixel Probs:', pixel_probs2)
+      #print('New image threshold:', new_prob_image)
+      #print('Sum Pixel Probs:', sum_pixel_probs)
+      #print('Image:',green)
+      #edges = cv2.Canny(np.uint8(new_prob_image),20,255 )
+      new_prob_image = cv2.GaussianBlur(new_prob_image,(5,5),0)
+      kernel = np.ones((5,5), np.uint8) 
+      new_prob_image = cv2.dilate(new_prob_image, kernel, iterations=1) 
+      #cv2.imshow('Binary Image', new_prob_image)
+      cnts,h = cv2.findContours(np.uint8(new_prob_image), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+      if no <= 30:
+      #img = cv2.drawContours(frame, cnts_sorted, 2, (0,255,0), 3)
+        (cnts_sorted, boundingBoxes) = contours.sort_contours(cnts, method="left-to-right") 
+        (x,y),radius = cv2.minEnclosingCircle(cnts_sorted[2])
+        center = (int(x),int(y)+4)
+        radius = int(radius)
+        cv2.circle(frame,center,radius,(0,255,0),5)
+        #print('Counts Sorted', cnts_sorted)
+        out.write(frame)
+      else:
+        (cnts_sorted, boundingBoxes) = contours.sort_contours(cnts, method="right-to-left") 
+        (x,y),radius = cv2.minEnclosingCircle(cnts_sorted[0])
+        center = (int(x),int(y)+4)
+        radius = int(radius)
+        cv2.circle(frame,center,radius,(0,255,0),5)
+        out.write(frame)
+        
+      #cv2.imshow('Contour Image', frame)
+      cv2.waitKey(0)
+      
+      
+      
+    out.release()
+    cap.release()
+    cv2.destroyAllWindows()  
+      
   
     
 def main():
   em = GmmEm(3)
-  mu1, mu2, mu3, sigma1, sigma2, sigma3, weights = em.train(20)
+  em.train(30)
+  em.test()
   
-  file1 = open("predicted_gmm.txt", "w")
-  file1.write(str(mu1))
-  file1.write("\n")
-  file1.write(str(mu2))
-  file1.write("\n")
-  file1.write(str(mu3))
-  file1.write("\n")
-  file1.write(str(sigma1))
-  file1.write("\n")
-  file1.write(str(sigma2))
-  file1.write("\n")
-  file1.write(str(sigma3))
-  file1.write("\n")
-  file1.write(str(weights))
-  file1.write("\n")
-
-  file1.close()
 
 
 
