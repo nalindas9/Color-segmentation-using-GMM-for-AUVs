@@ -231,12 +231,14 @@ class GmmEm:
         cv2.circle(frame,center,radius,(0,255,0),5)
         #print('Counts Sorted', cnts_sorted)
         out.write(frame)
-      else:
+      elif 31 <= no <= 40:
         (cnts_sorted, boundingBoxes) = contours.sort_contours(cnts, method="right-to-left") 
         (x,y),radius = cv2.minEnclosingCircle(cnts_sorted[0])
         center = (int(x),int(y)+4)
         radius = int(radius)
         cv2.circle(frame,center,radius,(0,255,0),5)
+        out.write(frame)
+      else:
         out.write(frame)
         
       #cv2.imshow('Contour Image', frame)
